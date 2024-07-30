@@ -1,0 +1,348 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  # S3 Bucket for React Frontend
+  ReactFrontendBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub 'react-frontend-${AWS::AccountId}-${AWS::Region}'
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+  # S3 Bucket Policy for React Frontend
+  ReactFrontendBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref ReactFrontendBucket
+      PolicyDocument:
+        Statement:
+          - Action: 's3:GetObject'
+            Effect: 'Allow'
+            Resource: !Sub 'arn:aws:s3:::${ReactFrontendBucket}/*'
+            Principal: '*'
+
+  # CloudFront Distribution for React Frontend
+  ReactFrontendDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt ReactFrontendBucket.DomainName
+            Id: ReactFrontendOrigin
+            S3OriginConfig: {}
+        Enabled: true
+        DefaultRootObject: 'index.html'
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          TargetOriginId: ReactFrontendOrigin
+          ViewerProtocolPolicy: 'redirect-to-https'
+          ForwardedValues:
+            QueryString: false
+
+  # VPC for Fargate
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  # Subnet for Fargate
+  Subnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: '10.0.1.0/24'
+      MapPublicIpOnLaunch: true
+
+  # Internet Gateway for VPC
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+
+  # Attach Internet Gateway to VPC
+  AttachGateway:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Route Table for Subnet
+  RouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+
+  # Route for Internet Access
+  Route:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  # Associate Subnet with Route Table
+  SubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref Subnet
+      RouteTableId: !Ref RouteTable
+
+  # ECS Cluster
+  ECSCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: 'MicroservicesCluster'
+
+  # IAM Role for ECS Task Execution
+  ECSTaskExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'ECSTaskExecutionPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:GetAuthorizationToken'
+                  - 's3:GetObject'
+                Resource: '*'
+
+
+
+  # ECS Task Definition for Candidate
+  ECSTaskDefinition1:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: 'Candidate'
+      NetworkMode: 'awsvpc'
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '256'
+      Memory: '512'
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: 'CandidateContainer'
+          Image: 'your-docker-image-repo/candidate:latest'
+          PortMappings:
+            - ContainerPort: 80
+          LogConfiguration:
+            LogDriver: 'awslogs'
+            Options:
+              awslogs-group: !Ref MicroserviceLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: 'candidate'
+
+  # ECS Task Definition for Company
+  ECSTaskDefinition2:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: 'Company'
+      NetworkMode: 'awsvpc'
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '256'
+      Memory: '512'
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: 'CompanyContainer'
+          Image: 'your-docker-image-repo/microservice2:latest'
+          PortMappings:
+            - ContainerPort: 80
+          LogConfiguration:
+            LogDriver: 'awslogs'
+            Options:
+              awslogs-group: !Ref MicroserviceLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: 'microservice2'
+
+  # ECS Task Definition for Microservice 3
+  ECSTaskDefinition3:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: 'Microservice3'
+      NetworkMode: 'awsvpc'
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '256'
+      Memory: '512'
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: 'MicroserviceContainer3'
+          Image: 'your-docker-image-repo/microservice3:latest'
+          PortMappings:
+            - ContainerPort: 80
+          LogConfiguration:
+            LogDriver: 'awslogs'
+            Options:
+              awslogs-group: !Ref MicroserviceLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: 'microservice3'
+
+  # ECS Service for Microservice 1
+  ECSService1:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: 1
+      LaunchType: 'FARGATE'
+      TaskDefinition: !Ref ECSTaskDefinition1
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'ENABLED'
+          Subnets:
+            - !Ref Subnet
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+
+  # ECS Service for Microservice 2
+  ECSService2:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: 1
+      LaunchType: 'FARGATE'
+      TaskDefinition: !Ref ECSTaskDefinition2
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'ENABLED'
+          Subnets:
+            - !Ref Subnet
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+
+  # ECS Service for Microservice 3
+  ECSService3:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: 1
+      LaunchType: 'FARGATE'
+      TaskDefinition: !Ref ECSTaskDefinition3
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'ENABLED'
+          Subnets:
+            - !Ref Subnet
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+
+  # Security Group for ECS Tasks
+  ECSSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: 'Enable HTTP access'
+      SecurityGroupIngress:
+        - IpProtocol: 'tcp'
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+
+  # CloudWatch Log Group for Microservices
+  MicroserviceLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: '/ecs/microservices'
+      RetentionInDays: 14
+
+  # API Gateway
+  ApiGateway:
+    Type: 'AWS::ApiGateway::RestApi'
+    Properties:
+      Name:
+
+
+
+ 'MicroservicesAPI'
+
+  # API Gateway Integration for Microservice 1
+  ApiGatewayResource1:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: 'microservice1'
+      RestApiId: !Ref ApiGateway
+
+  ApiGatewayMethod1:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      AuthorizationType: 'NONE'
+      HttpMethod: 'GET'
+      ResourceId: !Ref ApiGatewayResource1
+      RestApiId: !Ref ApiGateway
+      Integration:
+        Type: 'HTTP'
+        IntegrationHttpMethod: 'POST'
+        Uri: !Sub
+          - 'http://${ECSService1}.execute-api.${AWS::Region}.amazonaws.com/microservice1'
+          - { ECSService1: !GetAtt ECSService1.Endpoint }
+
+  # API Gateway Integration for Microservice 2
+  ApiGatewayResource2:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: 'microservice2'
+      RestApiId: !Ref ApiGateway
+
+  ApiGatewayMethod2:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      AuthorizationType: 'NONE'
+      HttpMethod: 'GET'
+      ResourceId: !Ref ApiGatewayResource2
+      RestApiId: !Ref ApiGateway
+      Integration:
+        Type: 'HTTP'
+        IntegrationHttpMethod: 'POST'
+        Uri: !Sub
+          - 'http://${ECSService2}.execute-api.${AWS::Region}.amazonaws.com/microservice2'
+          - { ECSService2: !GetAtt ECSService2.Endpoint }
+
+  # API Gateway Integration for Microservice 3
+  ApiGatewayResource3:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: 'microservice3'
+      RestApiId: !Ref ApiGateway
+
+  ApiGatewayMethod3:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      AuthorizationType: 'NONE'
+      HttpMethod: 'GET'
+      ResourceId: !Ref ApiGatewayResource3
+      RestApiId: !Ref ApiGateway
+      Integration:
+        Type: 'HTTP'
+        IntegrationHttpMethod: 'POST'
+        Uri: !Sub
+          - 'http://${ECSService3}.execute-api.${AWS::Region}.amazonaws.com/microservice3'
+          - { ECSService3: !GetAtt ECSService3.Endpoint }
+
+  # Outputs
+  Outputs:
+    ReactFrontendURL:
+      Description: 'URL of the React Frontend'
+      Value: !GetAtt ReactFrontendDistribution.DomainName
+    ApiEndpoint:
+      Description: 'API Gateway Endpoint'
+      Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
