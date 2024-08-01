@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
+from pymongo import MongoClient
 import os
 load_dotenv()
 
-MONGO_URI = os.environ["mongodb+srv://szeyeetew:b1Mc9uFyOQGg8KTS@cluster1.obeeiyd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"]
+MONGO_URI = os.environ["MONGO_URI"]
 ENV = os.environ["ENV"]
+
+print(f"MongoDB URI: {MONGO_URI}")
