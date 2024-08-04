@@ -2,25 +2,27 @@
 
 Monorepo for all backend microservices.
 
-Deployed at https://kong-service-dabaoking-kong-seanjin97.cloud.okteto.net/
+Deployed services
 
-## Microservices
+Deployed frontend at http://jobconnect1.s3-website-us-east-1.amazonaws.com/
 
-Click on each microservice to view detailed run instructructions.
+## Backend Microservices
 
-1. [Candidate](http://localhost:8081/candidate/swagger) - API Server that manages candidate accounts and details. 
+Click on each microservice to view detailed run instructions.
+
+1. [Candidate]((http://34.238.82.37:8081/candidate/swagger#/default/root_candidate_getall_get)) - API Server that manages candidate accounts and details. 
     * Name: candidate.
     * Port: 8081.
     * Language: Python.
-    * Framework: FastAPI. Flask example available [here](./user/src/flask_example.py) but it won't come with Swagger docs out of the box.
+    * Framework: FastAPI.
     * All APIs to be prefixed with `/candidate`.
-2. [Job](http://localhost:8083/job/swagger) - API Server that manages creation of jobs. 
+2. [Job]((http://174.129.172.106:8083/job/swagger#/default/root_job_getall_get)) - API Server that manages creation of jobs. 
     * Name: job.
     * Port: 8083.
     * Language: Python.
     * Framework: FastAPI.
     * All APIs to be prefixed with `/job`.
-3. [Company](http://localhost:8084/company/swagger) - API Server that manages company accounts and details. 
+3. [Company]((http://44.204.89.137:8084/company/swagger#/default/root_company_getall_get)) - API Server that manages company accounts and details. 
     * Name: company.
     * Port: 8084.
     * Language: Python.
@@ -29,20 +31,32 @@ Click on each microservice to view detailed run instructructions.
 
 ## Tools
 
-1. [MongoDB](./mongodb) - NoSQL DB. This folder serves as a docker volume to persist data on the local container instance. Delete the data folder within this folder to reset all data. 
-2. [Kafka](./kafka) - Messaging broker. This folder serves as a docker volume to persist data on the local container instance. Delete the data folder within this folder to reset all data.
+1. MongoDB Atlas - https://cloud.mongodb.com/v2/66a913a18021d34476cf2534#/clusters
+   
+Click on each microservice to view detailed run instructions.
 
+1. [Candidate](Local: http://localhost:8081/candidate/swagger , AWS:) - API Server that manages candidate accounts and details. 
+
+2. [Job](Local: http://localhost:8083/job/swagger) - API Server that manages creation of jobs. 
+    
+3. [Company](Local: http://localhost:8084/company/swagger) - API Server that manages company accounts and details. 
+
+
+## Tools
+
+1. [MongoDB](./mongodb) - NoSQL DB. This folder serves as a docker volume to persist data on the local container instance. Delete the data folder within this folder to reset all data. 
+   
 ## Running jobconnect-backend locally
 
 This runs all components as docker containers.
 
-2. Run the command in the project root directory to start up all components. `$ docker compose up -d`. You should see this. ![docker compose result](./assets/DockerComposeResult.png "Docker compose result")
+2. Run the command in the project root directory to start up all components. `$ docker compose up `.
 4. Go to the MongoDB admin console to verify that MongoDB is working. http://localhost:5000. 
 `Username: admin, Password: pass`
 ![mongodb admin console](./assets/MongoDB.png)
-5. Go to any API microservice Swagger docs to test available apis. (Only applicable for FastAPI servers.)
+5. Go to any API microservice Swagger docs to test available apis. 
     * URL: `localhost:8081/candidate/swagger`
-    * E.g. For `candidate` microservice's swagger docs go to http://localhost:8081/candidate/swagger. ![swagger](./assets/Swagger.png)
+    * E.g. For `candidate` microservice's swagger docs go to http://localhost:8081/candidate/swagger.
 
 # Local development
 
